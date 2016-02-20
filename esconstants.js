@@ -5,6 +5,7 @@ exports.doodlymappingLines = {
 			aType: {
 				properties: {
 					doodlyId: {"type": "string", "index": "not_analyzed"},
+					doodlyType: {"type": "string", "index": "not_analyzed"},
 					name: {"type": "string", "index": "not_analyzed"},
 					mobile: {"type": "string", "index": "not_analyzed"},
 					address: {"type": "string", "index": "not_analyzed"},
@@ -52,7 +53,7 @@ exports.packagemappingLines = {
 			aType: {
 				properties: {
 					packageId: {"type": "string", "index": "not_analyzed"},
-					ConsumerId: {"type": "string", "index": "not_analyzed"},
+					consumerId: {"type": "string", "index": "not_analyzed"},
 					packageType: {"type": "string", "index": "not_analyzed"},
 					size: {"type": "string", "index": "not_analyzed"},
 					packageDescription: {"type": "string", "index": "not_analyzed"},

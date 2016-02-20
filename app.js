@@ -33,6 +33,18 @@ if ('development' == app.get('env')) {
 app.get('/users', user.check);*/
 
 
+app.post('/doodly/insert', function(req, res) {
+    var name = req.body.name,
+        color = req.body.color;
+    
+});
+
+app.post('/doodly/update', function(req, res) {
+    var name = req.body.name,
+        color = req.body.color;
+    
+});
+
 http.createServer(app).listen(app.get('port'), function(){
 	console.log('Express server listening on port ' + app.get('port'));
 	console.log('Initializing...');
@@ -41,16 +53,15 @@ http.createServer(app).listen(app.get('port'), function(){
 	es.esConnectionOk(function(status){
 		if(status == true){
 			console.log('elastic is good.');
+			console.log('Checking for the elastic indices...');
+			es.createDoodlyIndex();
+			es.createPackageIndex();
+			es.createConsumerIndex();
 		}else{
 			console.log('elastic health is bad, exiting.');
 			process.exit(1);
 		}		
-	});
-
-	console.log('Checking for the elastic indices...');
-	es.createDoodlyIndex();
-	es.createPackageIndex();
-	es.createConsumerIndex();	
+	});		
 	
 });
 
