@@ -290,10 +290,10 @@ exports.createBooking = function(pack, callback){
 	var trgLon = pack.dropLocation.geoLocation.lon;
 	
 	
-	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(){
-		
+	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(jointid){
+		callback(pack.packageId, jointid);
 	});
-	callback(pack.packageId);
+	
 
 }
 
@@ -631,6 +631,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 													}
 												});
 												es.addPackageToDoodlyJoint(movDoodly["doodlyId"],pack);
+												callback(retNodes[0]);
 											});
 
 										});
