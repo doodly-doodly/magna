@@ -19,7 +19,7 @@
 var es = require("./esmodule");
 var http = require('http');
 
-var getAllDoodlies = function(){
+var test1 = function(){
 
 	es.searchES('doodly',{query : {
 		match:{
@@ -35,13 +35,13 @@ var getAllDoodlies = function(){
 				});
 			}
 		}
-		
+
 
 		es.searchES('joint-mapping',{size:1000,
 			query : {
-			match_all:{}
-			
-		}					
+				match_all:{}
+
+			}					
 		},function(edgeres){
 			var alledges = [];
 			if(edgeres.length > 0){
@@ -58,8 +58,6 @@ var getAllDoodlies = function(){
 					});
 				}
 			}
-			
-			
 			var post_data = {
 					nodes: allnodes,
 					edges: alledges,
@@ -70,9 +68,6 @@ var getAllDoodlies = function(){
 						name:'IyengarBakery'
 					}
 			};
-			
-			console.log(JSON.stringify(post_data));
-			
 
 			var options = {
 					host: '10.129.27.183',
@@ -80,21 +75,16 @@ var getAllDoodlies = function(){
 					path: "/abscido/rest/getAllPaths",
 					method: 'POST',					
 					headers: {
-						 'Content-Type': 'application/json',
-				          
-				      }
+						'Content-Type': 'application/json',
+					}
 			};
-			
+
 			var req = http.request(options, function(resp){
 				var str = '';
-
-				/*console.log(resp.statusCode);*/
-
 				//another chunk of data has been recieved, so append it to `str`
 				resp.on('data', function (chunk) {
 					str += chunk;
 				});
-
 				//the whole response has been recieved, so we just print it out here
 				resp.on('end', function () {
 					console.log(str);					
@@ -108,4 +98,23 @@ var getAllDoodlies = function(){
 
 }
 
-getAllDoodlies();
+//test1();
+
+
+var test2 = function(){
+	es.getAllDoodlys(function(res){
+		var result = [];		
+		console.log(res);
+	});
+}
+
+test2();
+
+
+var test3 = function(){
+	es.searchDoodlyInLocation(12.967439, 77.605845, '100m',function(res){
+		console.log(res.length);
+	});
+}
+
+//test3();

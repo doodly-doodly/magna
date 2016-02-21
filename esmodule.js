@@ -98,11 +98,15 @@ exports.searchES = function(index, query, callback){
 		if(error){
 			console.log(error.message);
 		}else{
-			callback(response.hits.hits);
+			var hitresult = response.hits.hits;
+			var expectedresult = [];
+			for(var i=0; i<hitresult.length;i++){			
+				expectedresult.push(hitresult[i]["_source"]);
+			}
+			callback(expectedresult);
 		}		
 	});
 }
-
 
 /*Index doodly*/
 exports.indexInToDoodly = function(doodlyDetails){
@@ -121,82 +125,80 @@ exports.indexInToDoodly = function(doodlyDetails){
 				client.indices.refresh({
 					index: 'doodly'
 				},function(error, resp){					
-					es.searchES('doodly',{query : {
+					es.searchES('doodly',{
+						size: 1000,
+						query: {
 						match:{
 							doodlyType : 'JOINT'
 						}
 					}					
 					},function(res){
 						if(res.length > 0){
-							console.log("---////"+res.length);
+
 							for(var i=0;i<res.length;i++){								
-								var point1 = res[i]["_source"]["doodlyId"];
-								console.log("---////p1"+point1);
+								var point1 = res[i]["doodlyId"];
+
 								var point2 = doodlyDetails.doodlyId;
-								console.log("---////p2"+point2);
+
 								if(point1 != point2){
 									var dir1 = point1 + '-' + point2;
 									var dir2 = point2 + '-' + point1;
-									console.log("---////d1"+dir1);
-									console.log("---////d2"+dir2);
+
 									es.getDistanceBetweenLoc(dir1, point1, point2,
-											res[i]["_source"]["currLocation"]["lat"],
-											res[i]["_source"]["currLocation"]["lon"],
+											res[i]["currLocation"]["lat"],
+											res[i]["currLocation"]["lon"],
 											doodlyDetails.currLocation.lat,
 											doodlyDetails.currLocation.lon,
 											function(costret, actdir, actpoint1, actpoint2){
-										console.log("---////pcb: "+actdir);
-												var jointmaprecbody = {
-														mapId: actdir,
-														from: actpoint1,
-														to: actpoint2,
-														cost: costret
-												}
-												var jointmaprec = {
-														index: "joint-mapping",
-														type: "aType",
-														id: jointmaprecbody.mapId,
-														body: jointmaprecbody
-												}
 
-												/*console.log(")))))"+dir1);*/
-
-												client.index(jointmaprec, function(err1, resp1) {
-													if(err1){
-														console.log(err1);
-													}
-													console.log(resp1);
-												});
-											});
+										var jointmaprecbody = {
+												mapId: actdir,
+												from: actpoint1,
+												to: actpoint2,
+												cost: costret
+										}
+										var jointmaprec = {
+												index: "joint-mapping",
+												type: "aType",
+												id: jointmaprecbody.mapId,
+												body: jointmaprecbody
+										}
+										client.index(jointmaprec, function(err1, resp1) {
+											if(err1){
+												console.log(err1);
+											}
+											console.log(resp1);
+										});
+									});
 
 									es.getDistanceBetweenLoc(dir2, point1, point2,
 											doodlyDetails.currLocation.lat,
 											doodlyDetails.currLocation.lon,
-											res[i]["_source"]["currLocation"]["lat"],
-											res[i]["_source"]["currLocation"]["lon"],											
+											res[i]["currLocation"]["lat"],
+											res[i]["currLocation"]["lon"],											
 											function(costret, actdir, actpoint1, actpoint2){
-										console.log("---////pcb: "+actdir);
-												var jointmaprecbodyrev = {
-														mapId: actdir,
-														from: actpoint2,
-														to: actpoint1,
-														cost: costret
-												}
 
-												var jointmaprecrev = {
-														index: "joint-mapping",
-														type: "aType",
-														id: jointmaprecbodyrev.mapId,
-														body: jointmaprecbodyrev
-												}
-												/*console.log("((((("+dir2);*/
-												client.index(jointmaprecrev, function(err1, resp2) {
-													if(err1){
-														console.log(err1);
-													}
-													/*console.log(resp2);*/
-												});
-											});								
+										var jointmaprecbodyrev = {
+												mapId: actdir,
+												from: actpoint2,
+												to: actpoint1,
+												cost: costret
+										}
+
+										var jointmaprecrev = {
+												index: "joint-mapping",
+												type: "aType",
+												id: jointmaprecbodyrev.mapId,
+												body: jointmaprecbodyrev
+										}
+
+										client.index(jointmaprecrev, function(err1, resp2) {
+											if(err1){
+												console.log(err1);
+											}
+
+										});
+									});								
 
 								}
 
@@ -213,7 +215,6 @@ exports.indexInToDoodly = function(doodlyDetails){
 var http = require('http');
 
 exports.getDistanceBetweenLoc = function(dir, point1, point2, startLat, startLon, endLat, endLon, callback){
-
 	var options = {
 			host: '10.129.27.183',
 			port: 8989,
@@ -222,23 +223,17 @@ exports.getDistanceBetweenLoc = function(dir, point1, point2, startLat, startLon
 			"&point="+endLat+"%2C"+endLon +
 			"&type=json&key=&locale=en-US&vehicle=car&weighting=fastest&elevation=false"
 	};
-
 	http.request(options, function(resp){
 		var str = '';
-
-		/*console.log(resp.statusCode);*/
-
 		//another chunk of data has been recieved, so append it to `str`
 		resp.on('data', function (chunk) {
 			str += chunk;
 		});
-
 		//the whole response has been recieved, so we just print it out here
 		resp.on('end', function () {
 			/*console.log(str);*/
 			var result = JSON.parse(str);
 			var dist = result.paths[0]["distance"];
-			console.log("---////cb: "+dir);
 			callback(dist, dir, point1, point2);
 		});
 	}).end();
@@ -251,6 +246,7 @@ exports.getDistanceBetweenLoc = function(dir, point1, point2, startLat, startLon
 /*Search doodly given a location and distance*/
 exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callback){
 	this.searchES("doodly", {
+		size: 1000,
 		query: {
 			filtered : {
 				query : {
@@ -266,6 +262,16 @@ exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callba
 					}
 				}
 			}
+		}
+	}, callback);
+}
+
+/*Get all doodlys*/
+exports.getAllDoodlys = function(callback){
+	this.searchES("doodly", {
+		size: 1000,
+		query: {
+			match_all : {}
 		}
 	}, callback);
 }
@@ -289,6 +295,7 @@ exports.updateES = function(index, id, query){
 /*Add package to doodly*/
 exports.addPackageToDoodly = function(id, nextPackage){	
 	this.searchES('doodly', {
+		size: 1000,
 		query: {
 			match: {
 				doodlyId: id
@@ -297,8 +304,8 @@ exports.addPackageToDoodly = function(id, nextPackage){
 	}, function(res){		
 		if(res.length > 0){
 			for(var i=0;i<res.length;i++){
-				if(res[i]["_source"]["doodlyId"] == id){
-					var packages = res[i]["_source"]["packageSet"];					
+				if(res[i]["doodlyId"] == id){
+					var packages = res[i]["packageSet"];					
 					packages.push(nextPackage);
 					console.log(packages);
 					es.updateES("doodly", id, {
@@ -371,6 +378,7 @@ exports.updateDoodlyCurrentLocation = function(id, currLat, currLon){
 	});
 	/*Need to propogate to all the packages*/
 	this.searchES('doodly', {
+		size:1000,
 		query: {
 			match: {
 				doodlyId: id
@@ -379,8 +387,8 @@ exports.updateDoodlyCurrentLocation = function(id, currLat, currLon){
 	}, function(res){		
 		if(res.length > 0){
 			for(var i=0;i<res.length;i++){
-				if(res[i]["_source"]["doodlyId"] == id){
-					var packages = res[i]["_source"]["packageSet"];	
+				if(res[i]["doodlyId"] == id){
+					var packages = res[i]["packageSet"];	
 					console.log(packages);
 					for(var packInd=0;packInd<packages.length;packInd++){
 						es.updateES("package", packages[packInd]["packageId"], {
