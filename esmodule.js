@@ -128,10 +128,10 @@ exports.indexInToDoodly = function(doodlyDetails){
 					es.searchES('doodly',{
 						size: 1000,
 						query: {
-						match:{
-							doodlyType : 'JOINT'
-						}
-					}					
+							match:{
+								doodlyType : 'JOINT'
+							}
+						}					
 					},function(res){
 						if(res.length > 0){
 
@@ -276,6 +276,24 @@ exports.getAllDoodlys = function(callback){
 	}, callback);
 }
 
+/*create package*/
+exports.createBooking = function(pack, callback){	
+	this.searchES("doodly", {
+		size: 1000,
+		query: {
+			match : {
+				doodlyType: 'JOINT'
+			}
+		}
+	}, function(resp){		
+		callback(pack, resp[0]);
+	});
+}
+
+this.createBooking({},function(pack, resp){
+	console.log(resp);
+});
+
 /*Update partial record into es*/
 exports.updateES = function(index, id, query){
 	client.update({
@@ -305,7 +323,40 @@ exports.addPackageToDoodly = function(id, nextPackage){
 		if(res.length > 0){
 			for(var i=0;i<res.length;i++){
 				if(res[i]["doodlyId"] == id){
-					var packages = res[i]["packageSet"];					
+					var packages = res[i]["packageSet"];
+					if(packages.length == 0){
+
+					}
+					packages.push(nextPackage);
+					console.log(packages);
+					es.updateES("doodly", id, {
+						doc:{
+							packageSet: packages
+						}
+					});
+				}
+			}
+		}
+	});
+}
+
+/*Add package to Joint*/
+exports.addPackageToDoodlyJoint = function(id, nextPackage){	
+	this.searchES('doodly', {
+		size: 1000,
+		query: {
+			match: {
+				doodlyId: id
+			}
+		}
+	}, function(res){		
+		if(res.length > 0){
+			for(var i=0;i<res.length;i++){
+				if(res[i]["doodlyId"] == id){
+					var packages = res[i]["packageSet"];
+					if(packages.length == 0){
+
+					}
 					packages.push(nextPackage);
 					console.log(packages);
 					es.updateES("doodly", id, {
@@ -351,7 +402,7 @@ exports.handOverPackage = function(pId, dId, currLat, currLon){
 }
 
 /*update package location to other doodly*/
-exports.handOverPackage = function(pId, dId, currLat, currLon){
+/*exports.handOverPackage = function(pId, dId, currLat, currLon){
 	es.updateES("package", pId, {
 		doc:{
 			doodly: {
@@ -363,7 +414,7 @@ exports.handOverPackage = function(pId, dId, currLat, currLon){
 			}
 		}
 	});
-}
+}*/
 
 /*update doodly current location*/
 exports.updateDoodlyCurrentLocation = function(id, currLat, currLon){
@@ -424,6 +475,192 @@ exports.deleteIndex = function(indexName, callback){
 				callback();
 			});
 }
+
+/*find nearest joint for source and target*/
+exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, callback){
+	var distance = '150km';
+	es.searchDoodlyInLocation(sourceLat, sourceLon, distance, function(sourceDoodlyRes){
+		var srcDoodlyJoint;
+		for(var srcLoc = 0; srcLoc<sourceDoodlyRes.length; srcLoc++){
+			if(sourceDoodlyRes[srcLoc]["doodlyType"] == 'JOINT'){
+				srcDoodlyJoint =  sourceDoodlyRes[srcLoc];				
+				break;
+			}
+		}		
+		if(srcDoodlyJoint){
+			es.searchDoodlyInLocation(destLat, destLon, distance, function(destinationDoodlyRes){
+				var dstDoodlyJoint;
+				for(var dstLoc = 0; dstLoc<destinationDoodlyRes.length; dstLoc++){
+					if(destinationDoodlyRes[dstLoc]["doodlyType"] == 'JOINT' && destinationDoodlyRes[dstLoc]["doodlyId"] !=  srcDoodlyJoint["doodlyId"]){
+						dstDoodlyJoint =  destinationDoodlyRes[dstLoc];				
+						break;
+					}
+				}
+				if(dstDoodlyJoint){
+					console.log(srcDoodlyJoint["doodlyId"]+" : "+dstDoodlyJoint["doodlyId"]);
+					if(srcDoodlyJoint["doodlyId"] == dstDoodlyJoint["doodlyId"]){
+						callback({
+							srcJoint: srcDoodlyJoint["doodlyId"],
+							trgJoint: dstDoodlyJoint["doodlyId"]
+						});
+					}else{
+
+						es.searchES('doodly',{query : {
+							match_all:{}
+						}					
+						},function(allDoodlyRes){
+
+							var nextStopsArr = [];
+							if(allDoodlyRes.length > 0){
+								for(var i=0;i<allDoodlyRes.length;i++){
+									console.log(allDoodlyRes[i]);
+									if(allDoodlyRes[i]["nextStops"].length>0){
+
+										var existPathDetails = {
+												nodes: allDoodlyRes[i]["nextStops"],
+												id: allDoodlyRes[i]["doodlyId"],
+												cost: '0'
+										}
+
+										nextStopsArr.push(existPathDetails);
+									}
+								}
+							}
+
+							console.log(nextStopsArr);
+
+
+							/*Nobody is there*/
+							es.searchES('doodly',{query : {
+								match:{
+									doodlyType : 'JOINT'
+								}
+							}					
+							},function(noderes){
+								var allnodes = [];
+								if(noderes.length > 0){
+									for(var i=0;i<noderes.length;i++){	
+										allnodes.push({
+											name: noderes[i]["doodlyId"]
+										});
+									}
+								}
+								es.searchES('joint-mapping',{
+									size:1000,
+									query : {
+										match_all:{}
+									}					
+								},function(edgeres){									
+									var alledges = [];
+									if(edgeres.length > 0){
+										for(var i=0;i<edgeres.length;i++){
+											alledges.push({
+												from:{
+													name: edgeres[i]["from"]
+												},
+												to:{
+													name: edgeres[i]["to"]
+												},
+												cost:edgeres[i]["cost"]
+											});
+										}
+									}
+									var post_data = {
+											nodes: allnodes,
+											edges: alledges,
+											from: {
+												name: srcDoodlyJoint["doodlyId"]
+											},
+											to:{
+												name: dstDoodlyJoint["doodlyId"]
+											}
+									};
+
+									var options = {
+											host: '169.45.222.215',
+											port: '28080',
+											path: "/abscido/rest/getPath",
+											method: 'POST',					
+											headers: {
+												'Content-Type': 'application/json',
+											}
+									};
+
+									var req = http.request(options, function(resp){
+										var str = '';
+										//another chunk of data has been recieved, so append it to `str`
+										resp.on('data', function (chunk) {
+											str += chunk;
+										});
+										//the whole response has been recieved, so we just print it out here
+										resp.on('end', function () {
+											var obj = JSON.parse(str);
+											/*console.log(obj.path.nodes);*/
+											var retNodes = [];
+											for(var j=0; j<obj.path.nodes.length; j++){
+												retNodes.push(obj.path.nodes[j]["name"]);
+												console.log("--->"+obj.path.nodes[j]["name"]);
+											}
+											es.searchDoodlyInLocation(sourceLat, sourceLon, distance, function(movingDoodlyRes){
+												var movDoodly;
+												for(var mdLoc = 0; mdLoc<movingDoodlyRes.length; mdLoc++){
+													if(movingDoodlyRes[mdLoc]["doodlyType"] == 'MOVING'){
+														movDoodly =  movingDoodlyRes[mdLoc];				
+														break;
+													}
+												}
+												es.updateES("doodly", movDoodly["doodlyId"], {
+													doc:{
+														nextStops: retNodes
+													}
+												});
+											});
+
+										});
+									});
+									req.write(JSON.stringify(post_data));
+									req.end();
+								});
+							});
+						});
+					}
+				}else{
+					console.log('Sorry');
+				}
+			});
+		}else{
+			console.log('Sorry');
+		}		
+	});
+}
+
+/*this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, function(resp){
+
+});*/
+
+/*es.searchES("doodly",{
+	size: 1000,
+	query: {
+		match:{
+			doodlyId: 'Raja'
+		}
+	}
+}, function(res){
+	console.log(res);
+});*/
+
+/*es.searchES("joint-mapping",{
+					size: 1000,
+					query: {
+						match:{
+							from: sourceDoodlyRes["doodlyId"]
+						}
+					}
+				}, function(directJoints){
+					for(){
+
+					}
+				})*/
 
 /*this.updateDoodlyCurrentLocation("1", 11, 11);*/
 
