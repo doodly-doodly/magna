@@ -102,3 +102,17 @@ exports.consumermappingLines = {
 			}
 		}
 };
+
+
+exports.jointmappingLines = {
+		mappings: {
+			aType: {
+				properties: {
+					mapId: {"type": "string", "index": "not_analyzed"},
+					from: {"type": "string", "index": "not_analyzed"},
+					to: {"type": "string", "index": "not_analyzed"},
+					cost: {"type": "string", "index": "not_analyzed"}
+				}
+			}
+		}
+};

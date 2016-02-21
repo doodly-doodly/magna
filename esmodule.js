@@ -49,7 +49,7 @@ exports.createESIndex = function(indexName, mappings, callback){
 }
 
 /*Check if index is present, if not then create*/
-exports.checkAndCreateIndex = function(indexName, mappings){
+exports.checkAndCreateIndex = function(indexName, mappings, callback){
 	this.esIndexExists(indexName, function(status){
 		if(status == true){
 			console.log('index '+indexName+' is present.');
@@ -58,6 +58,7 @@ exports.checkAndCreateIndex = function(indexName, mappings){
 			es.createESIndex(indexName, mappings, function(status){
 				if(status == true){
 					console.log('Created the index {'+indexName+'}...');
+					callback();
 				}else{
 					console.log('Problem creating the index {'+indexName+'}, exiting...');
 					/*process.exit(2);*/
@@ -68,34 +69,23 @@ exports.checkAndCreateIndex = function(indexName, mappings){
 }
 
 /*Create doodly index*/
-exports.createDoodlyIndex = function(){	
-	this.checkAndCreateIndex("doodly", esconstants.doodlymappingLines);
+exports.createDoodlyIndex = function(callback){	
+	this.checkAndCreateIndex("doodly", esconstants.doodlymappingLines, callback);
 }
 
 /*Create package index*/
-exports.createPackageIndex = function(){
-	this.checkAndCreateIndex("package", esconstants.packagemappingLines);	
+exports.createPackageIndex = function(callback){
+	this.checkAndCreateIndex("package", esconstants.packagemappingLines, callback);	
 }
 
 /*Create consumer index*/
-exports.createConsumerIndex = function(){
-	this.checkAndCreateIndex("consumer", esconstants.consumermappingLines);
+exports.createConsumerIndex = function(callback){
+	this.checkAndCreateIndex("consumer", esconstants.consumermappingLines, callback);
 }
 
-/*Index doodly*/
-exports.indexInToDoodly = function(doodlyDetails){
-	var record = {
-			index: "doodly",
-			type: "aType",
-			id: doodlyDetails.doodlyId,
-			body: doodlyDetails
-	};
-
-	client.index(record, function(err, resp) {
-		if (err) {
-			console.error(err.message);
-		} 	
-	});
+/*Create consumer index*/
+exports.createJointMappingIndex = function(callback){
+	this.checkAndCreateIndex("joint-mapping", esconstants.jointmappingLines, callback);
 }
 
 /*Search*/
@@ -112,6 +102,151 @@ exports.searchES = function(index, query, callback){
 		}		
 	});
 }
+
+
+/*Index doodly*/
+exports.indexInToDoodly = function(doodlyDetails){
+	var record = {
+			index: "doodly",
+			type: "aType",
+			id: doodlyDetails.doodlyId,
+			body: doodlyDetails
+	};
+
+	client.index(record, function(err, resp) {
+		if (err) {
+			console.error(err.message);
+		}else{
+			if(doodlyDetails.doodlyType == 'JOINT'){
+				client.indices.refresh({
+					index: 'doodly'
+				},function(error, resp){					
+					es.searchES('doodly',{query : {
+						match:{
+							doodlyType : 'JOINT'
+						}
+					}					
+					},function(res){
+						if(res.length > 0){
+							console.log("---////"+res.length);
+							for(var i=0;i<res.length;i++){								
+								var point1 = res[i]["_source"]["doodlyId"];
+								console.log("---////p1"+point1);
+								var point2 = doodlyDetails.doodlyId;
+								console.log("---////p2"+point2);
+								if(point1 != point2){
+									var dir1 = point1 + '-' + point2;
+									var dir2 = point2 + '-' + point1;
+									console.log("---////d1"+dir1);
+									console.log("---////d2"+dir2);
+									es.getDistanceBetweenLoc(dir1, point1, point2,
+											res[i]["_source"]["currLocation"]["lat"],
+											res[i]["_source"]["currLocation"]["lon"],
+											doodlyDetails.currLocation.lat,
+											doodlyDetails.currLocation.lon,
+											function(costret, actdir, actpoint1, actpoint2){
+										console.log("---////pcb: "+actdir);
+												var jointmaprecbody = {
+														mapId: actdir,
+														from: actpoint1,
+														to: actpoint2,
+														cost: costret
+												}
+												var jointmaprec = {
+														index: "joint-mapping",
+														type: "aType",
+														id: jointmaprecbody.mapId,
+														body: jointmaprecbody
+												}
+
+												/*console.log(")))))"+dir1);*/
+
+												client.index(jointmaprec, function(err1, resp1) {
+													if(err1){
+														console.log(err1);
+													}
+													console.log(resp1);
+												});
+											});
+
+									es.getDistanceBetweenLoc(dir2, point1, point2,
+											doodlyDetails.currLocation.lat,
+											doodlyDetails.currLocation.lon,
+											res[i]["_source"]["currLocation"]["lat"],
+											res[i]["_source"]["currLocation"]["lon"],											
+											function(costret, actdir, actpoint1, actpoint2){
+										console.log("---////pcb: "+actdir);
+												var jointmaprecbodyrev = {
+														mapId: actdir,
+														from: actpoint2,
+														to: actpoint1,
+														cost: costret
+												}
+
+												var jointmaprecrev = {
+														index: "joint-mapping",
+														type: "aType",
+														id: jointmaprecbodyrev.mapId,
+														body: jointmaprecbodyrev
+												}
+												/*console.log("((((("+dir2);*/
+												client.index(jointmaprecrev, function(err1, resp2) {
+													if(err1){
+														console.log(err1);
+													}
+													/*console.log(resp2);*/
+												});
+											});								
+
+								}
+
+							}
+						}
+					});
+				});
+
+			}
+		}	
+	});
+}
+
+var http = require('http');
+
+exports.getDistanceBetweenLoc = function(dir, point1, point2, startLat, startLon, endLat, endLon, callback){
+
+	var options = {
+			host: '10.129.27.183',
+			port: 8989,
+			path: "/route?" +
+			"point="+startLat+"%2C"+startLon +
+			"&point="+endLat+"%2C"+endLon +
+			"&type=json&key=&locale=en-US&vehicle=car&weighting=fastest&elevation=false"
+	};
+
+	http.request(options, function(resp){
+		var str = '';
+
+		/*console.log(resp.statusCode);*/
+
+		//another chunk of data has been recieved, so append it to `str`
+		resp.on('data', function (chunk) {
+			str += chunk;
+		});
+
+		//the whole response has been recieved, so we just print it out here
+		resp.on('end', function () {
+			/*console.log(str);*/
+			var result = JSON.parse(str);
+			var dist = result.paths[0]["distance"];
+			console.log("---////cb: "+dir);
+			callback(dist, dir, point1, point2);
+		});
+	}).end();
+}
+
+/*this.getDistanceBetweenLoc(12.974617, 77.596918, 12.979447, 77.602701, function(){
+
+});*/
 
 /*Search doodly given a location and distance*/
 exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callback){
@@ -259,11 +394,27 @@ exports.updateDoodlyCurrentLocation = function(id, currLat, currLon){
 							}
 						});
 					}
-					
+
 				}
 			}
 		}
 	});
+}
+
+
+/*update doodly current location*/
+exports.deleteIndex = function(indexName, callback){
+	client.indices.delete(
+			{
+				index:indexName
+			},function(error, resp){
+				if(error){
+					console.log(indexName + ' may not be there!!!');
+				}else{
+					console.log(resp);
+				}	
+				callback();
+			});
 }
 
 /*this.updateDoodlyCurrentLocation("1", 11, 11);*/

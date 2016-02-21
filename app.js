@@ -4,8 +4,6 @@
  */
 
 var express = require('express')
-/* , routes = require('./routes')
-  , user = require('./routes/user')*/
 , http = require('http')
 , path = require('path')
 , es = require("./esmodule");
@@ -29,22 +27,6 @@ if ('development' == app.get('env')) {
 	app.use(express.errorHandler());
 }
 
-/*app.get('/', routes.index);
-app.get('/users', user.check);*/
-
-
-app.post('/doodly/insert', function(req, res) {
-    var name = req.body.name,
-        color = req.body.color;
-    
-});
-
-app.post('/doodly/update', function(req, res) {
-    var name = req.body.name,
-        color = req.body.color;
-    
-});
-
 http.createServer(app).listen(app.get('port'), function(){
 	console.log('Express server listening on port ' + app.get('port'));
 	console.log('Initializing...');
@@ -62,7 +44,6 @@ http.createServer(app).listen(app.get('port'), function(){
 			process.exit(1);
 		}		
 	});		
-	
 });
 
 
