@@ -278,21 +278,31 @@ exports.getAllDoodlys = function(callback){
 
 /*create package*/
 exports.createBooking = function(pack, callback){	
-	this.searchES("doodly", {
-		size: 1000,
-		query: {
-			match : {
-				doodlyType: 'JOINT'
-			}
-		}
-	}, function(resp){		
-		callback(pack, resp[0]);
+
+	var packid = new Date().getMilliseconds();
+	pack.packageId = 'pack_'+packid;
+	this.indexInToPackage(pack);
+//	sourceLat, sourceLon, destLat, destLon, pack, callback
+	
+	var srcLat = pack.pickupLocation.geoLocation.lat;
+	var srcLon = pack.pickupLocation.geoLocation.lon;
+	var trgLat = pack.dropLocation.geoLocation.lat;
+	var trgLon = pack.dropLocation.geoLocation.lon;
+	
+	
+	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(){
+		
 	});
+	callback(pack.packageId);
+
 }
 
-this.createBooking({},function(pack, resp){
-	console.log(resp);
-});
+/**/
+exports.routeToNextJoint = function(){
+
+}
+
+
 
 /*Update partial record into es*/
 exports.updateES = function(index, id, query){
@@ -477,7 +487,7 @@ exports.deleteIndex = function(indexName, callback){
 }
 
 /*find nearest joint for source and target*/
-exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, callback){
+exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, pack, callback){
 	var distance = '150km';
 	es.searchDoodlyInLocation(sourceLat, sourceLon, distance, function(sourceDoodlyRes){
 		var srcDoodlyJoint;
@@ -496,8 +506,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 						break;
 					}
 				}
-				if(dstDoodlyJoint){
-					console.log(srcDoodlyJoint["doodlyId"]+" : "+dstDoodlyJoint["doodlyId"]);
+				if(dstDoodlyJoint){					
 					if(srcDoodlyJoint["doodlyId"] == dstDoodlyJoint["doodlyId"]){
 						callback({
 							srcJoint: srcDoodlyJoint["doodlyId"],
@@ -516,20 +525,24 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 									console.log(allDoodlyRes[i]);
 									if(allDoodlyRes[i]["nextStops"].length>0){
 
+										var nodedts = allDoodlyRes[i]["nextStops"];
+										var nodedtsObj = [];
+										for(var nodedtsind=0; nodedtsind<nodedts.length;nodedtsind++){
+											nodedtsObj.push({
+												name: nodedts[nodedtsind]
+											}); 
+										}
+
 										var existPathDetails = {
-												nodes: allDoodlyRes[i]["nextStops"],
+												nodes: nodedtsObj,
 												id: allDoodlyRes[i]["doodlyId"],
-												cost: '0'
+												cost: '100'
 										}
 
 										nextStopsArr.push(existPathDetails);
 									}
 								}
 							}
-
-							console.log(nextStopsArr);
-
-
 							/*Nobody is there*/
 							es.searchES('doodly',{query : {
 								match:{
@@ -573,8 +586,11 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 											},
 											to:{
 												name: dstDoodlyJoint["doodlyId"]
-											}
+											},
+											existingPaths: nextStopsArr
 									};
+
+									console.log(post_data);
 
 									var options = {
 											host: '169.45.222.215',
@@ -611,9 +627,10 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 												}
 												es.updateES("doodly", movDoodly["doodlyId"], {
 													doc:{
-														nextStops: retNodes
+														nextStops: retNodes														 
 													}
 												});
+												es.addPackageToDoodlyJoint(movDoodly["doodlyId"],pack);
 											});
 
 										});
@@ -642,7 +659,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 	size: 1000,
 	query: {
 		match:{
-			doodlyId: 'Raja'
+			doodlyId: 'Martin'
 		}
 	}
 }, function(res){
