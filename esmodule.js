@@ -281,19 +281,20 @@ exports.createBooking = function(pack, callback){
 
 	var packid = new Date().getMilliseconds();
 	pack.packageId = 'pack_'+packid;
-	this.indexInToPackage(pack);
-//	sourceLat, sourceLon, destLat, destLon, pack, callback
 	
+//	sourceLat, sourceLon, destLat, destLon, pack, callback
+
 	var srcLat = pack.pickupLocation.geoLocation.lat;
 	var srcLon = pack.pickupLocation.geoLocation.lon;
 	var trgLat = pack.dropLocation.geoLocation.lat;
 	var trgLon = pack.dropLocation.geoLocation.lon;
-	
-	
-	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(jointid){
+
+	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(jointid, packagePath){
+		pack.path = packagePath;
+		es.indexInToPackage(pack);
 		callback(pack.packageId, jointid);
 	});
-	
+
 
 }
 
@@ -486,6 +487,116 @@ exports.deleteIndex = function(indexName, callback){
 			});
 }
 
+/*when doodly reaches a joint*/
+exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, callback){
+	//Drop packages
+	this.searchES('doodly', {
+		size:1000,
+		query: {
+			match: {
+				doodlyId: did
+			}
+		}
+	}, function(res){		
+		var packageInUse = [];
+		var droppedPack = [];
+		for(var i=0;i<res[0].packageSet.length;i++){
+			console.log(res[0].packageSet[i]["path"][1]);
+			console.log(res[0].nextStops[1]);
+			if(res[0].nextStops[1] && res[0].packageSet[i]["path"][1] == res[0].nextStops[1]){
+				packageInUse.push(res[0].packageSet[i]);	
+			}else{
+				droppedPack.push(res[0].packageSet[i]);
+			}			
+		}
+		
+		es.searchES('doodly', {
+			size:1000,
+			query: {
+				match: {
+					doodlyId: jointId
+				}
+			}
+		}, function(jres){			
+			var packageToAddToJoint = [];	
+			var pickedUpPack = [];
+			for(var a = 0; a<packageInUse.lenght; a++){				
+				for(var b=0; b<jres[0].packageSet.length; b++){					
+					if(packageInUse[a]["packageId"] != jres[0].packageSet[b]["packageId"]){
+						packageToAddToJoint.push(jres[0].packageSet[b]);
+					}else{
+						pickedUpPack.push(jres[0].packageSet[b]);
+					}					
+				}				
+			}
+			
+			if(packageInUse.length != res[0].packageSet.length){
+				es.updateES("doodly", did, {
+					doc:{
+						packageSet: packageInUse
+					}
+				});
+			}	
+			
+			if(packageToAddToJoint.lenght != jres[0].packageSet.length){
+				es.updateES("doodly", jointId, {
+					doc:{
+						packageSet: packageToAddToJoint
+					}
+				});
+			}			
+			
+			if(res[0].nextStops[1]){
+			es.searchES('doodly', {
+				size:1000,
+				query: {
+					match: {
+						doodlyId: res[0].nextStops[1]
+					}
+				}
+			}, function(j1res){
+				
+				var options = {
+						host: '169.45.107.101',
+						port: 8989,
+						path: "/route?" +
+						"point="+res[0].currLocation.lat+"%2C"+res[0].currLocation.lon +
+						"&point="+j1res[0].currLocation.lat+"%2C"+j1res[0].currLocation.lon +
+						"&type=json&key=&locale=en-US&vehicle=car&weighting=fastest&elevation=false"
+				};
+				http.request(options, function(resp){
+					var str = '';
+					//another chunk of data has been recieved, so append it to `str`
+					resp.on('data', function (chunk) {
+						str += chunk;
+					});
+					//the whole response has been recieved, so we just print it out here
+					resp.on('end', function () {
+						/*console.log(str);*/
+						var result = JSON.parse(str);
+						var point = result.paths[0]["points"];						
+						console.log(point);						
+						callback(pickedUpPack, droppedPack, point);
+						
+					});
+				}).end();
+				
+			});
+			}
+			
+			
+			
+		});
+		
+		
+	});
+	
+	
+	//
+}
+
+this.doodlyReachedJoint('RoyalMart', 'Martin' ,12.965568, 77.603399);
+
 /*find nearest joint for source and target*/
 exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, pack, callback){
 	var distance = '150km';
@@ -630,8 +741,8 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 														nextStops: retNodes														 
 													}
 												});
-												es.addPackageToDoodlyJoint(movDoodly["doodlyId"],pack);
-												callback(retNodes[0]);
+												es.addPackageToDoodlyJoint(movDoodly["doodlyId"], pack);
+												callback(retNodes[0], retNodes);
 											});
 
 										});
@@ -652,7 +763,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 	});
 }
 
-/*this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, function(resp){
+/*this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, {}, function(resp1, resp2){
 
 });*/
 
