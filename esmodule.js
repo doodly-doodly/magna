@@ -5,7 +5,7 @@ var elasticsearch = require('elasticsearch')
 
 /*Create client connection*/
 var client = new elasticsearch.Client({
-	host: 'localhost:9200'/*,
+	host: '169.44.60.229:9200'/*,
 	log: 'trace'*/
 });
 
@@ -216,7 +216,7 @@ var http = require('http');
 
 exports.getDistanceBetweenLoc = function(dir, point1, point2, startLat, startLon, endLat, endLon, callback){
 	var options = {
-			host: '10.129.27.183',
+			host: '169.45.107.101',
 			port: 8989,
 			path: "/route?" +
 			"point="+startLat+"%2C"+startLon +
