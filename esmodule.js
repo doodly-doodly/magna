@@ -417,9 +417,9 @@ exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callba
 
 }
 
-this.searchDoodlyInLocation(12.968553,77.601714, '1k',function(resp){
+/*this.searchDoodlyInLocation(12.968553,77.601714, '1k',function(resp){
 	console.log(resp);
-})
+})*/
 
 /*Get all doodlys*/
 exports.getAllDoodlys = function(callback){
