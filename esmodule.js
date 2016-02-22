@@ -1009,7 +1009,12 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 															}).end();
 														});
 													}else{
-														callback('error6', 'no assignments');
+														var responseObj = {
+																jointId: srcDoodlyJoint["doodlyId"],
+																packageId: pack.packageId,																																
+														};
+														
+														callback('ok', responseObj);
 													}
 
 												});
