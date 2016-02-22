@@ -244,6 +244,7 @@ exports.getDistanceBetweenLoc = function(dir, point1, point2, startLat, startLon
 });*/
 
 /*Search doodly given a location and distance*/
+/*This is a call back hell, need to improve*/
 exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callback){
 	this.searchES("doodly", {
 		size: 1000,
@@ -298,7 +299,7 @@ exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callba
 								},
 								filter : {
 									geo_distance : {						
-										distance : '1km',
+										distance : '900m',
 										currLocation : {
 											lat : latitude,
 											lon : longtitude
@@ -308,7 +309,103 @@ exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callba
 							}
 						}
 					}, function(resp){						
-						callback(resp);
+						if(resp.length > 0){
+							callback(resp);
+						}else{					
+							es.searchES("doodly", {
+								size: 1000,
+								query: {
+									filtered : {
+										query : {
+											match_all : {}
+										},
+										filter : {
+											geo_distance : {						
+												distance : '1.2km',
+												currLocation : {
+													lat : latitude,
+													lon : longtitude
+												}						
+											}
+										}
+									}
+								}
+							}, function(resp){						
+								if(resp.length > 0){
+									callback(resp);
+								}else{					
+									es.searchES("doodly", {
+										size: 1000,
+										query: {
+											filtered : {
+												query : {
+													match_all : {}
+												},
+												filter : {
+													geo_distance : {						
+														distance : '1.5km',
+														currLocation : {
+															lat : latitude,
+															lon : longtitude
+														}						
+													}
+												}
+											}
+										}
+									}, function(resp){						
+										if(resp.length > 0){
+											callback(resp);
+										}else{					
+											es.searchES("doodly", {
+												size: 1000,
+												query: {
+													filtered : {
+														query : {
+															match_all : {}
+														},
+														filter : {
+															geo_distance : {						
+																distance : '1.8km',
+																currLocation : {
+																	lat : latitude,
+																	lon : longtitude
+																}						
+															}
+														}
+													}
+												}
+											}, function(resp){						
+												if(resp.length > 0){
+													callback(resp);
+												}else{					
+													es.searchES("doodly", {
+														size: 1000,
+														query: {
+															filtered : {
+																query : {
+																	match_all : {}
+																},
+																filter : {
+																	geo_distance : {						
+																		distance : '2km',
+																		currLocation : {
+																			lat : latitude,
+																			lon : longtitude
+																		}						
+																	}
+																}
+															}
+														}
+													}, function(resp){						
+														callback(resp);
+													});
+												}
+											});
+										}
+									});
+								}
+							});
+						}
 					});
 				}
 
@@ -320,9 +417,9 @@ exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callba
 
 }
 
-/*this.searchDoodlyInLocation(12.968553,77.601714, '1k',function(resp){
+this.searchDoodlyInLocation(12.968553,77.601714, '1k',function(resp){
 	console.log(resp);
-})*/
+})
 
 /*Get all doodlys*/
 exports.getAllDoodlys = function(callback){
