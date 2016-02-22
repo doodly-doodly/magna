@@ -864,9 +864,9 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 
 }
 
-this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, {}, function(resp1, resp2, doodlyid, point, error){
+/*this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, {}, function(resp1, resp2, doodlyid, point, error){
 	console.log('Point: '+point);
-});
+});*/
 
 /*es.searchES("doodly",{
 	size: 1000,
