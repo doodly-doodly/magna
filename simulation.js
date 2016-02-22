@@ -64,17 +64,17 @@ var doodlyData = function(){
 	es.indexInToDoodly(getDoodlyJoints('RoyalMart', 'JOINT', 'Royal Mart', '0000000000', 'addrJ3', 'm', 'single', 12.971867,77.606317));
 	es.indexInToDoodly(getDoodlyJoints('McDonald', 'JOINT', 'McDonald', '0000000000', 'addrJ4', 'm', 'single', 12.973488,77.603506));
 	es.indexInToDoodly(getDoodlyJoints('RelianceElectronics', 'JOINT', 'Reliance Electronics', '0000000000', 'addrJ5', 'm', 'single', 12.967047,77.600126));
-	es.indexInToDoodly(getDoodlyJoints('KantiSweets', 'JOINT', 'KantiSweets', '0000000000', 'addrJ6', 'm', 'single', 12.969703,77.603098));
+	es.indexInToDoodly(getDoodlyJoints('Woodland', 'JOINT', 'Woodland', '0000000000', 'addrJ6', 'm', 'single', 12.970205,77.611799));
+	es.indexInToDoodly(getDoodlyJoints('LocalStore', 'JOINT', 'Local Store', '0000000000', 'addrJ4', 'm', 'single', 12.975641,77.607787));
+	es.indexInToDoodly(getDoodlyJoints('KamatHotel', 'JOINT', 'Kamat Hotel', '0000000000', 'addrJ5', 'm', 'single', 12.971794,77.594891));
+	es.indexInToDoodly(getDoodlyJoints('MetroStation', 'JOINT', 'Metro Station', '0000000000', 'addrJ6', 'm', 'single', 12.966838,77.596049));
 
 	es.indexInToDoodly(getDoodlyJoints('Jesse', 'MOVING', 'Jesse', '0000000000', 'addrM1', 'm', 'single', 12.9685,77.600802));// >>> Should be moving
 	es.indexInToDoodly(getDoodlyJoints('Harry', 'MOVING', 'Harry', '0000000000', 'addrM2', 'm', 'single', 12.966796,77.604772));//>>> Should be moving
 	es.indexInToDoodly(getDoodlyJoints('Jacob', 'MOVING', 'Jacob', '0000000000', 'addrM3', 'm', 'single', 12.971742,77.605652));//>>> Stagnant
 	es.indexInToDoodly(getDoodlyJoints('Martin', 'MOVING', 'Martin', '0000000000', 'addrM4', 'm', 'single', 12.972317,77.600094));//>>> Stagnant
-	
-	/*es.indexInToDoodly(getDoodlyJoints('doodlyM1', 'MOVING', 'doodlyM1', '0000000000', 'addrM1', 'm', 'single', 12.9742659, 77.613423));
-	es.indexInToDoodly(getDoodlyJoints('doodlyM2', 'MOVING', 'doodlyM2', '0000000000', 'addrM2', 'm', 'single', 12.9645844, 77.5973297));
-	es.indexInToDoodly(getDoodlyJoints('doodlyM3', 'MOVING', 'doodlyM3', '0000000000', 'addrM3', 'm', 'single', 12.9618572, 77.6001984 ));
-	es.indexInToDoodly(getDoodlyJoints('doodlyM4', 'MOVING', 'doodlyM4', '0000000000', 'addrM4', 'm', 'single', 12.9671572, 77.6094802 ));*/
+	es.indexInToDoodly(getDoodlyJoints('Rahul', 'MOVING', 'Jacob', '0000000000', 'addrM3', 'm', 'single', 12.97125,77.604997));//>>> Stagnant
+	es.indexInToDoodly(getDoodlyJoints('Parikh', 'MOVING', 'Martin', '0000000000', 'addrM4', 'f', 'single', 12.97263,77.604053));//>>> Stagnant
 }
 
 doodlyData();
