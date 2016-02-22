@@ -289,10 +289,12 @@ exports.createBooking = function(pack, callback){
 	var trgLat = pack.dropLocation.geoLocation.lat;
 	var trgLon = pack.dropLocation.geoLocation.lon;
 
-	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(jointid, packagePath){
-		pack.path = packagePath;
-		es.indexInToPackage(pack);
-		callback(pack.packageId, jointid);
+	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(status, resp){
+		if(status == 'ok'){
+			pack.path = resp.path;
+			es.indexInToPackage(pack);
+			callback(status, resp);
+		}
 	});
 
 
@@ -838,7 +840,8 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 																		jointId: retNodes[0],
 																		packageId: pack.packageId,
 																		doodlyId: movDoodly["doodlyId"],
-																		polyLine: point
+																		polyLine: point,
+																		path: retNodes
 																};
 																
 																callback('ok', responseObj);
