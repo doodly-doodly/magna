@@ -281,7 +281,7 @@ exports.createBooking = function(pack, callback){
 
 	var packid = new Date().getMilliseconds();
 	pack.packageId = 'pack_'+packid;
-	
+
 //	sourceLat, sourceLon, destLat, destLon, pack, callback
 
 	var srcLat = pack.pickupLocation.geoLocation.lat;
@@ -504,12 +504,19 @@ exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, call
 			console.log(res[0].packageSet[i]["path"][1]);
 			console.log(res[0].nextStops[1]);
 			if(res[0].nextStops[1] && res[0].packageSet[i]["path"][1] == res[0].nextStops[1]){
-				packageInUse.push(res[0].packageSet[i]);	
+				packageInUse.push(res[0].packageSet[i]);
+				var pathinPck = res[0].packageSet[i].path;
+				pathinPck.shift();
+				es.updateES("package", res[0].packageSet[i].packageId, {
+					doc:{
+						path: pathinPck
+					}
+				});
 			}else{
 				droppedPack.push(res[0].packageSet[i]);
-			}			
+			}		
 		}
-		
+
 		es.searchES('doodly', {
 			size:1000,
 			query: {
@@ -523,21 +530,28 @@ exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, call
 			for(var a = 0; a<packageInUse.lenght; a++){				
 				for(var b=0; b<jres[0].packageSet.length; b++){					
 					if(packageInUse[a]["packageId"] != jres[0].packageSet[b]["packageId"]){
+						jres[0].packageSet[b]["path"].shift(); 
 						packageToAddToJoint.push(jres[0].packageSet[b]);
 					}else{
 						pickedUpPack.push(jres[0].packageSet[b]);
+						var pathinPck1 = jres[0].packageSet[b].path;
+						pathinPck1.shift();
+						es.updateES("package", jres[0].packageSet[i].packageId, {
+							doc:{
+								path: pathinPck1
+							}
+						});
 					}					
 				}				
 			}
-			
-			if(packageInUse.length != res[0].packageSet.length){
-				es.updateES("doodly", did, {
-					doc:{
-						packageSet: packageInUse
-					}
-				});
-			}	
-			
+
+			es.updateES("doodly", did, {
+				doc:{
+					packageSet: packageInUse
+				}
+			});
+
+
 			if(packageToAddToJoint.lenght != jres[0].packageSet.length){
 				es.updateES("doodly", jointId, {
 					doc:{
@@ -545,227 +559,262 @@ exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, call
 					}
 				});
 			}			
-			
-			if(res[0].nextStops[1]){
-			es.searchES('doodly', {
-				size:1000,
-				query: {
-					match: {
-						doodlyId: res[0].nextStops[1]
+
+			if(res[0].nextStops[1]){				
+				es.searchES('doodly', {
+					size:1000,
+					query: {
+						match: {
+							doodlyId: res[0].nextStops[1]
+						}
 					}
-				}
-			}, function(j1res){
-				
-				var options = {
-						host: '169.45.107.101',
-						port: 8989,
-						path: "/route?" +
-						"point="+res[0].currLocation.lat+"%2C"+res[0].currLocation.lon +
-						"&point="+j1res[0].currLocation.lat+"%2C"+j1res[0].currLocation.lon +
-						"&type=json&key=&locale=en-US&vehicle=car&weighting=fastest&elevation=false"
-				};
-				http.request(options, function(resp){
-					var str = '';
-					//another chunk of data has been recieved, so append it to `str`
-					resp.on('data', function (chunk) {
-						str += chunk;
+				}, function(j1res){
+
+					var options = {
+							host: '169.45.107.101',
+							port: 8989,
+							path: "/route?" +
+							"point="+res[0].currLocation.lat+"%2C"+res[0].currLocation.lon +
+							"&point="+j1res[0].currLocation.lat+"%2C"+j1res[0].currLocation.lon +
+							"&type=json&key=&locale=en-US&vehicle=car&weighting=fastest&elevation=false"
+					};
+					http.request(options, function(resp){
+						var str = '';
+						//another chunk of data has been recieved, so append it to `str`
+						resp.on('data', function (chunk) {
+							str += chunk;
+						});
+						//the whole response has been recieved, so we just print it out here
+						resp.on('end', function () {
+							/*console.log(str);*/
+							var result = JSON.parse(str);
+							var point = result.paths[0]["points"];						
+							console.log(point);						
+							callback(pickedUpPack, droppedPack, point);
+
+						});
+					}).end();
+
+					res[0].nextStops.shift();
+					console.log(res[0].nextStops);
+					es.updateES("doodly", did, {
+						doc:{
+							nextStops: res[0].nextStops
+						}
 					});
-					//the whole response has been recieved, so we just print it out here
-					resp.on('end', function () {
-						/*console.log(str);*/
-						var result = JSON.parse(str);
-						var point = result.paths[0]["points"];						
-						console.log(point);						
-						callback(pickedUpPack, droppedPack, point);
-						
-					});
-				}).end();
-				
-			});
+
+				});
 			}
-			
-			
-			
+
+
+
 		});
-		
-		
+
+
 	});
-	
-	
+
+
 	//
 }
 
-this.doodlyReachedJoint('RoyalMart', 'Martin' ,12.965568, 77.603399);
+/*this.doodlyReachedJoint('RoyalMart', 'Martin' ,12.965568, 77.603399, function(a,b,c){});*/
 
 /*find nearest joint for source and target*/
 exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, pack, callback){
-	var distance = '150km';
-	es.searchDoodlyInLocation(sourceLat, sourceLon, distance, function(sourceDoodlyRes){
-		var srcDoodlyJoint;
-		for(var srcLoc = 0; srcLoc<sourceDoodlyRes.length; srcLoc++){
-			if(sourceDoodlyRes[srcLoc]["doodlyType"] == 'JOINT'){
-				srcDoodlyJoint =  sourceDoodlyRes[srcLoc];				
-				break;
-			}
-		}		
-		if(srcDoodlyJoint){
-			es.searchDoodlyInLocation(destLat, destLon, distance, function(destinationDoodlyRes){
-				var dstDoodlyJoint;
-				for(var dstLoc = 0; dstLoc<destinationDoodlyRes.length; dstLoc++){
-					if(destinationDoodlyRes[dstLoc]["doodlyType"] == 'JOINT' && destinationDoodlyRes[dstLoc]["doodlyId"] !=  srcDoodlyJoint["doodlyId"]){
-						dstDoodlyJoint =  destinationDoodlyRes[dstLoc];				
-						break;
-					}
+	var distance = '1km';
+	
+	es.searchES('joint-mapping',{size:1000,query : {
+		match_all:{}
+	}					
+	},function(costres){
+		
+		var costMap = {}
+		
+		for(var ii = 0; ii<costres.length; ii++){
+			costMap[costres[ii].mapId] = costres[ii].cost;
+		}
+		es.searchDoodlyInLocation(sourceLat, sourceLon, distance, function(sourceDoodlyRes){
+			var srcDoodlyJoint;
+			for(var srcLoc = 0; srcLoc<sourceDoodlyRes.length; srcLoc++){
+				if(sourceDoodlyRes[srcLoc]["doodlyType"] == 'JOINT'){
+					srcDoodlyJoint =  sourceDoodlyRes[srcLoc];				
+					break;
 				}
-				if(dstDoodlyJoint){					
-					if(srcDoodlyJoint["doodlyId"] == dstDoodlyJoint["doodlyId"]){
-						callback({
-							srcJoint: srcDoodlyJoint["doodlyId"],
-							trgJoint: dstDoodlyJoint["doodlyId"]
-						});
-					}else{
+			}		
+			if(srcDoodlyJoint){
+				es.searchDoodlyInLocation(destLat, destLon, distance, function(destinationDoodlyRes){
+					var dstDoodlyJoint;
+					for(var dstLoc = 0; dstLoc<destinationDoodlyRes.length; dstLoc++){
+						if(destinationDoodlyRes[dstLoc]["doodlyType"] == 'JOINT' && destinationDoodlyRes[dstLoc]["doodlyId"] !=  srcDoodlyJoint["doodlyId"]){
+							dstDoodlyJoint =  destinationDoodlyRes[dstLoc];				
+							break;
+						}
+					}
+					if(dstDoodlyJoint){					
+						if(srcDoodlyJoint["doodlyId"] == dstDoodlyJoint["doodlyId"]){
+							callback({
+								srcJoint: srcDoodlyJoint["doodlyId"],
+								trgJoint: dstDoodlyJoint["doodlyId"]
+							});
+						}else{
 
-						es.searchES('doodly',{query : {
-							match_all:{}
-						}					
-						},function(allDoodlyRes){
-
-							var nextStopsArr = [];
-							if(allDoodlyRes.length > 0){
-								for(var i=0;i<allDoodlyRes.length;i++){
-									console.log(allDoodlyRes[i]);
-									if(allDoodlyRes[i]["nextStops"].length>0){
-
-										var nodedts = allDoodlyRes[i]["nextStops"];
-										var nodedtsObj = [];
-										for(var nodedtsind=0; nodedtsind<nodedts.length;nodedtsind++){
-											nodedtsObj.push({
-												name: nodedts[nodedtsind]
-											}); 
-										}
-
-										var existPathDetails = {
-												nodes: nodedtsObj,
-												id: allDoodlyRes[i]["doodlyId"],
-												cost: '100'
-										}
-
-										nextStopsArr.push(existPathDetails);
-									}
-								}
-							}
-							/*Nobody is there*/
 							es.searchES('doodly',{query : {
-								match:{
-									doodlyType : 'JOINT'
-								}
+								match_all:{}
 							}					
-							},function(noderes){
-								var allnodes = [];
-								if(noderes.length > 0){
-									for(var i=0;i<noderes.length;i++){	
-										allnodes.push({
-											name: noderes[i]["doodlyId"]
-										});
+							},function(allDoodlyRes){
+
+								var nextStopsArr = [];
+								if(allDoodlyRes.length > 0){
+									for(var i=0;i<allDoodlyRes.length;i++){
+										console.log(allDoodlyRes[i]);
+										if(allDoodlyRes[i]["nextStops"].length>0){
+
+											var nodedts = allDoodlyRes[i]["nextStops"];
+											var nodedtsObj = [];
+											var previousjoint='';
+											var costC = 0;
+											for(var nodedtsind=0; nodedtsind<nodedts.length;nodedtsind++){
+												var key = previousjoint+"-"+nodedts[nodedtsind];
+												console.log('--->'+key);
+												previousjoint = nodedts[nodedtsind];
+												console.log(")))))))))"+JSON.stringify(costMap));
+												if(costMap.hasOwnProperty(key)){													
+													var thiscost = parseFloat(costMap[key]);
+													console.log('====>'+key+":"+costMap[key]);
+													costC += thiscost;
+												}
+												
+												nodedtsObj.push({
+													name: nodedts[nodedtsind]
+												}); 
+											}
+
+											var existPathDetails = {
+													nodes: nodedtsObj,
+													id: allDoodlyRes[i]["doodlyId"],
+													cost: ''+costC+''
+											}
+
+											nextStopsArr.push(existPathDetails);
+										}
 									}
 								}
-								es.searchES('joint-mapping',{
-									size:1000,
-									query : {
-										match_all:{}
-									}					
-								},function(edgeres){									
-									var alledges = [];
-									if(edgeres.length > 0){
-										for(var i=0;i<edgeres.length;i++){
-											alledges.push({
-												from:{
-													name: edgeres[i]["from"]
+								/*Nobody is there*/
+								es.searchES('doodly',{query : {
+									match:{
+										doodlyType : 'JOINT'
+									}
+								}					
+								},function(noderes){
+									var allnodes = [];
+									if(noderes.length > 0){
+										for(var i=0;i<noderes.length;i++){	
+											allnodes.push({
+												name: noderes[i]["doodlyId"]
+											});
+										}
+									}
+									es.searchES('joint-mapping',{
+										size:1000,
+										query : {
+											match_all:{}
+										}					
+									},function(edgeres){									
+										var alledges = [];
+										if(edgeres.length > 0){
+											for(var i=0;i<edgeres.length;i++){
+												alledges.push({
+													from:{
+														name: edgeres[i]["from"]
+													},
+													to:{
+														name: edgeres[i]["to"]
+													},
+													cost:edgeres[i]["cost"]
+												});
+											}
+										}
+										var post_data = {
+												nodes: allnodes,
+												edges: alledges,
+												from: {
+													name: srcDoodlyJoint["doodlyId"]
 												},
 												to:{
-													name: edgeres[i]["to"]
+													name: dstDoodlyJoint["doodlyId"]
 												},
-												cost:edgeres[i]["cost"]
-											});
-										}
-									}
-									var post_data = {
-											nodes: allnodes,
-											edges: alledges,
-											from: {
-												name: srcDoodlyJoint["doodlyId"]
-											},
-											to:{
-												name: dstDoodlyJoint["doodlyId"]
-											},
-											existingPaths: nextStopsArr
-									};
+												existingPaths: nextStopsArr
+										};
 
-									console.log(post_data);
+										console.log(post_data);
 
-									var options = {
-											host: '169.45.222.215',
-											port: '28080',
-											path: "/abscido/rest/getPath",
-											method: 'POST',					
-											headers: {
-												'Content-Type': 'application/json',
-											}
-									};
-
-									var req = http.request(options, function(resp){
-										var str = '';
-										//another chunk of data has been recieved, so append it to `str`
-										resp.on('data', function (chunk) {
-											str += chunk;
-										});
-										//the whole response has been recieved, so we just print it out here
-										resp.on('end', function () {
-											var obj = JSON.parse(str);
-											/*console.log(obj.path.nodes);*/
-											var retNodes = [];
-											for(var j=0; j<obj.path.nodes.length; j++){
-												retNodes.push(obj.path.nodes[j]["name"]);
-												console.log("--->"+obj.path.nodes[j]["name"]);
-											}
-											es.searchDoodlyInLocation(sourceLat, sourceLon, distance, function(movingDoodlyRes){
-												var movDoodly;
-												for(var mdLoc = 0; mdLoc<movingDoodlyRes.length; mdLoc++){
-													if(movingDoodlyRes[mdLoc]["doodlyType"] == 'MOVING'){
-														movDoodly =  movingDoodlyRes[mdLoc];				
-														break;
-													}
+										var options = {
+												host: '169.45.222.215',
+												port: '28080',
+												path: "/abscido/rest/getPath",
+												method: 'POST',					
+												headers: {
+													'Content-Type': 'application/json',
 												}
-												es.updateES("doodly", movDoodly["doodlyId"], {
-													doc:{
-														nextStops: retNodes														 
-													}
-												});
-												es.addPackageToDoodlyJoint(movDoodly["doodlyId"], pack);
-												callback(retNodes[0], retNodes);
-											});
+										};
 
+										var req = http.request(options, function(resp){
+											var str = '';
+											//another chunk of data has been recieved, so append it to `str`
+											resp.on('data', function (chunk) {
+												str += chunk;
+											});
+											//the whole response has been recieved, so we just print it out here
+											resp.on('end', function () {
+												var obj = JSON.parse(str);
+												/*console.log(obj.path.nodes);*/
+												var retNodes = [];
+												for(var j=0; j<obj.path.nodes.length; j++){
+													retNodes.push(obj.path.nodes[j]["name"]);
+													console.log("--->"+obj.path.nodes[j]["name"]);
+												}
+												es.searchDoodlyInLocation(sourceLat, sourceLon, distance, function(movingDoodlyRes){
+													var movDoodly;
+													for(var mdLoc = 0; mdLoc<movingDoodlyRes.length; mdLoc++){
+														if(movingDoodlyRes[mdLoc]["doodlyType"] == 'MOVING'){
+															movDoodly =  movingDoodlyRes[mdLoc];				
+															break;
+														}
+													}
+													es.updateES("doodly", movDoodly["doodlyId"], {
+														doc:{
+															nextStops: retNodes														 
+														}
+													});
+													es.addPackageToDoodlyJoint(movDoodly["doodlyId"], pack);
+													callback(retNodes[0], retNodes);
+												});
+
+											});
 										});
+										req.write(JSON.stringify(post_data));
+										req.end();
 									});
-									req.write(JSON.stringify(post_data));
-									req.end();
 								});
 							});
-						});
+						}
+					}else{
+						console.log('Sorry');
 					}
-				}else{
-					console.log('Sorry');
-				}
-			});
-		}else{
-			console.log('Sorry');
-		}		
+				});
+			}else{
+				console.log('Sorry');
+			}		
+		});
+		
 	});
+	
+	
 }
 
-/*this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, {}, function(resp1, resp2){
+this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, {}, function(resp1, resp2){
 
-});*/
+});
 
 /*es.searchES("doodly",{
 	size: 1000,

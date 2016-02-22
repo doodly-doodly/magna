@@ -47,6 +47,7 @@ var getDoodlyJoints = function(id, type, nam, mob, addr, s, ms, currLat, curLon)
 		address: addr,
 		sex: s,
 		marital_status: ms,
+		nextStops:[],
 		currLocation: {
 			lat: currLat,
 			lon: curLon

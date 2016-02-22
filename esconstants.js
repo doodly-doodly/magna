@@ -12,18 +12,14 @@ exports.doodlymappingLines = {
 					sex: {"type": "string", "index": "not_analyzed"},
 					marital_status: {"type": "string", "index": "not_analyzed"},
 					currLocation:{"type": "geo_point"},
-					nextStop:{
-						properties:{
-							address: {"type": "string", "index": "not_analyzed"},
-							geoLocation: {"type": "geo_point"}
-						}
-					},
+					nextStops:{"type": "string", "index": "not_analyzed"},
 					packageSet:{
 						properties:{
 							packageId: {"type": "string", "index": "not_analyzed"},
 							packageType: {"type": "string", "index": "not_analyzed"},
 							size: {"type": "string", "index": "not_analyzed"},
 							status: {"type": "string", "index": "not_analyzed"},
+							path:{"type": "string", "index": "not_analyzed"},
 							pickupLocation:{
 								properties:{
 									name: {"type": "string", "index": "not_analyzed"},
@@ -58,6 +54,7 @@ exports.packagemappingLines = {
 					size: {"type": "string", "index": "not_analyzed"},
 					packageDescription: {"type": "string", "index": "not_analyzed"},
 					status: {"type": "string", "index": "not_analyzed"},
+					path:{"type": "string", "index": "not_analyzed"},
 					doodly:{
 						properties:{
 							doodlyId: {"type": "string", "index": "not_analyzed"},
