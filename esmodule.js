@@ -645,7 +645,9 @@ exports.deleteIndex = function(indexName, callback){
 }
 
 /*when doodly reaches a joint*/
-exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, callback){
+exports.doodlyReachedJoint = function(did, currentLat, currentLon, callback){
+	
+	var jointId;
 	//Drop packages
 	this.searchES('doodly', {
 		size:1000,
@@ -657,6 +659,7 @@ exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, call
 	}, function(res){		
 		var packageInUse = [];
 		var droppedPack = [];
+		jointId = res[0].nextStops[0];
 		for(var i=0;i<res[0].packageSet.length;i++){
 			console.log(res[0].packageSet[i]["path"][1]);
 			console.log(res[0].nextStops[1]);
@@ -775,15 +778,21 @@ exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, call
 }
 
 
+
+
+
+
 /*this.doodlyReachedJoint('RoyalMart', 'Martin' ,12.965568, 77.603399, function(a,b,c){});*/
 
 /*find nearest joint for source and target*/
 exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, pack, callback){
 	var distance = '100m';
 
-	es.searchES('joint-mapping',{size:1000,query : {
-		match_all:{}
-	}					
+	es.searchES('joint-mapping',{
+		size:1000,
+		query : {
+			match_all:{}
+		}					
 	},function(costres){
 
 		var costMap = {}
@@ -816,9 +825,10 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 							});
 						}else{
 
-							es.searchES('doodly',{query : {
-								match_all:{}
-							}					
+							es.searchES('doodly',{
+								query : {
+									match_all:{}
+								}					
 							},function(allDoodlyRes){
 
 								var nextStopsArr = [];
@@ -1013,7 +1023,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 																jointId: srcDoodlyJoint["doodlyId"],
 																packageId: pack.packageId,																																
 														};
-														
+
 														callback('ok', responseObj);
 													}
 
