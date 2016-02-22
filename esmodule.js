@@ -444,13 +444,12 @@ exports.createBooking = function(pack, callback){
 	var trgLat = pack.dropLocation.geoLocation.lat;
 	var trgLon = pack.dropLocation.geoLocation.lon;
 
-	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(status, resp){
-		console.log(status);
+	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(status, resp){		
 		if(status == 'ok'){
 			pack.path = resp.path;
-			es.indexInToPackage(pack);
-			callback(status, resp);
+			es.indexInToPackage(pack);			
 		}
+		callback(status, resp);
 	});
 
 
@@ -1010,7 +1009,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 															}).end();
 														});
 													}else{
-														callback('error', 'no assignments');
+														callback('error6', 'no assignments');
 													}
 
 												});
