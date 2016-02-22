@@ -943,7 +943,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 															}
 														}
 													}
-													
+
 													if(movDoodly == null){
 														for(var mdLoc = 0; mdLoc<movingDoodlyRes.length; mdLoc++){
 															if(movingDoodlyRes[mdLoc]["doodlyType"] == 'MOVING'){
@@ -952,65 +952,66 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 															}
 														}
 													}
-													
-													if(movDoodly == null){
+
+													if(movDoodly != null){
+
+														es.updateES("doodly", movDoodly["doodlyId"], {
+															doc:{
+																nextStops: retNodes														 
+															}
+														});
+														es.addPackageToDoodlyJoint(movDoodly["doodlyId"], pack);													
+
+														var assignedDoodly = movDoodly;
+														var startLat = assignedDoodly["currLocation"]["lat"];
+														var startLon = assignedDoodly["currLocation"]["lon"];
+														var node = assignedDoodly["nextStops"][0];
+
+														es.searchES('doodly',{query : {
+															match:{
+																doodlyId : node
+															}
+														}					
+														},function(jointnoderes){
+															var jointlat = jointnoderes[0]['currLocation']['lat'];
+															var jointlon = jointnoderes[0]['currLocation']['lon'];
+
+															var options = {
+																	host: '169.45.107.101',
+																	port: 8989,
+																	path: "/route?" +
+																	"point="+startLat+"%2C"+startLon +
+																	"&point="+jointlat+"%2C"+jointlon +
+																	"&type=json&key=&locale=en-US&vehicle=car&weighting=fastest&elevation=false"
+															};
+															http.request(options, function(resp){
+																var str = '';
+																//another chunk of data has been recieved, so append it to `str`
+																resp.on('data', function (chunk) {
+																	str += chunk;
+																});
+																//the whole response has been recieved, so we just print it out here
+																resp.on('end', function () {
+																	/*console.log(str);*/
+																	var result = JSON.parse(str);
+																	var point = result.paths[0]["points"];						
+																	console.log(pack);	
+																	var responseObj = {
+																			jointId: retNodes[0],
+																			packageId: pack.packageId,
+																			doodlyId: movDoodly["doodlyId"],
+																			polyLine: point,
+																			path: retNodes
+																	};
+
+																	callback('ok', responseObj);
+
+																});
+															}).end();
+														});
+													}else{
 														callback('error', 'no assignments');
-														return;
 													}
-													es.updateES("doodly", movDoodly["doodlyId"], {
-														doc:{
-															nextStops: retNodes														 
-														}
-													});
-													es.addPackageToDoodlyJoint(movDoodly["doodlyId"], pack);													
-
-													var assignedDoodly = movDoodly;
-													var startLat = assignedDoodly["currLocation"]["lat"];
-													var startLon = assignedDoodly["currLocation"]["lon"];
-													var node = assignedDoodly["nextStops"][0];
-													
-													es.searchES('doodly',{query : {
-														match:{
-															doodlyId : node
-														}
-													}					
-													},function(jointnoderes){
-														var jointlat = jointnoderes[0]['currLocation']['lat'];
-														var jointlon = jointnoderes[0]['currLocation']['lon'];
-
-														var options = {
-																host: '169.45.107.101',
-																port: 8989,
-																path: "/route?" +
-																"point="+startLat+"%2C"+startLon +
-																"&point="+jointlat+"%2C"+jointlon +
-																"&type=json&key=&locale=en-US&vehicle=car&weighting=fastest&elevation=false"
-														};
-														http.request(options, function(resp){
-															var str = '';
-															//another chunk of data has been recieved, so append it to `str`
-															resp.on('data', function (chunk) {
-																str += chunk;
-															});
-															//the whole response has been recieved, so we just print it out here
-															resp.on('end', function () {
-																/*console.log(str);*/
-																var result = JSON.parse(str);
-																var point = result.paths[0]["points"];						
-																console.log(pack);	
-																var responseObj = {
-																		jointId: retNodes[0],
-																		packageId: pack.packageId,
-																		doodlyId: movDoodly["doodlyId"],
-																		polyLine: point,
-																		path: retNodes
-																};
-
-																callback('ok', responseObj);
-
-															});
-														}).end();
-													});
 
 												});
 
