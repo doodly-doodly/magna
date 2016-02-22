@@ -623,7 +623,7 @@ exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, call
 
 /*find nearest joint for source and target*/
 exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, pack, callback){
-	var distance = '1km';
+	var distance = '2km';
 
 	es.searchES('joint-mapping',{size:1000,query : {
 		match_all:{}
@@ -794,6 +794,10 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 																break;
 															}
 														}
+													}
+													if(movDoodly == null){
+													 callback('error', 'no assignments');
+													 return;
 													}
 													es.updateES("doodly", movDoodly["doodlyId"], {
 														doc:{
