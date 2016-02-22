@@ -5,7 +5,7 @@ var elasticsearch = require('elasticsearch')
 
 /*Create client connection*/
 var client = new elasticsearch.Client({
-	host: '169.44.60.229:9200'/*,
+	host: 'localhost:9200'/*,
 	log: 'trace'*/
 });
 
@@ -254,7 +254,7 @@ exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callba
 				},
 				filter : {
 					geo_distance : {						
-						distance : distance,
+						distance : '300m',
 						currLocation : {
 							lat : latitude,
 							lon : longtitude
@@ -263,8 +263,66 @@ exports.searchDoodlyInLocation = function(latitude, longtitude, distance, callba
 				}
 			}
 		}
-	}, callback);
+	}, function(resp){
+		if(resp.length > 0){			
+			callback(resp);
+		}else{			
+			es.searchES("doodly", {
+				size: 1000,
+				query: {
+					filtered : {
+						query : {
+							match_all : {}
+						},
+						filter : {
+							geo_distance : {						
+								distance : '600m',
+								currLocation : {
+									lat : latitude,
+									lon : longtitude
+								}						
+							}
+						}
+					}
+				}
+			}, function(resp){
+				if(resp.length > 0){
+					callback(resp);
+				}else{					
+					es.searchES("doodly", {
+						size: 1000,
+						query: {
+							filtered : {
+								query : {
+									match_all : {}
+								},
+								filter : {
+									geo_distance : {						
+										distance : '1km',
+										currLocation : {
+											lat : latitude,
+											lon : longtitude
+										}						
+									}
+								}
+							}
+						}
+					}, function(resp){						
+						callback(resp);
+					});
+				}
+
+			});
+		}
+
+
+	});
+
 }
+
+/*this.searchDoodlyInLocation(12.968553,77.601714, '1k',function(resp){
+	console.log(resp);
+})*/
 
 /*Get all doodlys*/
 exports.getAllDoodlys = function(callback){
@@ -290,6 +348,7 @@ exports.createBooking = function(pack, callback){
 	var trgLon = pack.dropLocation.geoLocation.lon;
 
 	this.getNearestDoodlyJoints(srcLat, srcLon, trgLat, trgLon, pack, function(status, resp){
+		console.log(status);
 		if(status == 'ok'){
 			pack.path = resp.path;
 			es.indexInToPackage(pack);
@@ -384,7 +443,7 @@ exports.addPackageToDoodlyJoint = function(id, nextPackage){
 }
 
 /*Insert record into package*/
-exports.indexInToPackage = function(packageDetails){
+exports.indexInToPackage = function(packageDetails){	
 	var record = {
 			index: "package",
 			type: "aType",
@@ -619,11 +678,12 @@ exports.doodlyReachedJoint = function(jointId, did, currentLat, currentLon, call
 	//
 }
 
+
 /*this.doodlyReachedJoint('RoyalMart', 'Martin' ,12.965568, 77.603399, function(a,b,c){});*/
 
 /*find nearest joint for source and target*/
 exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon, pack, callback){
-	var distance = '2km';
+	var distance = '100m';
 
 	es.searchES('joint-mapping',{size:1000,query : {
 		match_all:{}
@@ -772,8 +832,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 												/*console.log(obj.path.nodes);*/
 												var retNodes = [];
 												for(var j=0; j<obj.path.nodes.length; j++){
-													retNodes.push(obj.path.nodes[j]["name"]);
-													console.log("--->"+obj.path.nodes[j]["name"]);
+													retNodes.push(obj.path.nodes[j]["name"]);													
 												}
 
 												var assigDoodlyId = obj.path.id;
@@ -787,6 +846,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 															}
 														}
 													}
+													
 													if(movDoodly == null){
 														for(var mdLoc = 0; mdLoc<movingDoodlyRes.length; mdLoc++){
 															if(movingDoodlyRes[mdLoc]["doodlyType"] == 'MOVING'){
@@ -795,9 +855,10 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 															}
 														}
 													}
+													
 													if(movDoodly == null){
-													 callback('error', 'no assignments');
-													 return;
+														callback('error', 'no assignments');
+														return;
 													}
 													es.updateES("doodly", movDoodly["doodlyId"], {
 														doc:{
@@ -810,7 +871,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 													var startLat = assignedDoodly["currLocation"]["lat"];
 													var startLon = assignedDoodly["currLocation"]["lon"];
 													var node = assignedDoodly["nextStops"][0];
-													console.log('---------------------------------------'+node);
+													
 													es.searchES('doodly',{query : {
 														match:{
 															doodlyId : node
@@ -847,7 +908,7 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 																		polyLine: point,
 																		path: retNodes
 																};
-																
+
 																callback('ok', responseObj);
 
 															});
