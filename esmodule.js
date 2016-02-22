@@ -833,8 +833,15 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 																/*console.log(str);*/
 																var result = JSON.parse(str);
 																var point = result.paths[0]["points"];						
-																console.log(point);						
-																callback(retNodes[0], retNodes, movDoodly["doodlyId"], point,  null);
+																console.log(pack);	
+																var responseObj = {
+																		jointId: retNodes[0],
+																		packageId: pack.packageId,
+																		doodlyId: movDoodly["doodlyId"],
+																		polyLine: point
+																};
+																
+																callback('ok', responseObj);
 
 															});
 														}).end();
@@ -851,11 +858,11 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 							});
 						}
 					}else{
-						callback(null, null, null, null, 'no assignments');
+						callback('error', 'no assignments');
 					}
 				});
 			}else{
-				callback(null, null,  null, null, 'no assignments');
+				callback('error', 'no assignments');
 			}		
 		});
 
@@ -864,8 +871,8 @@ exports.getNearestDoodlyJoints = function(sourceLat, sourceLon, destLat, destLon
 
 }
 
-/*this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, {}, function(resp1, resp2, doodlyid, point, error){
-	console.log('Point: '+point);
+/*this.getNearestDoodlyJoints(12.974617, 77.596918, 12.979447, 77.602701, {packageId:'pack_23'}, function(status, response){
+	console.log('Point: '+JSON.stringify(response));
 });*/
 
 /*es.searchES("doodly",{
